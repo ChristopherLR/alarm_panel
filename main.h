@@ -1,6 +1,7 @@
 #pragma once
 
 #include "port_expander.h"
+#include "state_machine.h"
 #include <avr/io.h>
 
 /* AVR definitions*/
@@ -20,10 +21,14 @@ char check_next_state_2();
 void hazard();
 void transfer_state();
 void display_state();
+void convert_counters();
 void set_next_state();
 void ERROR();
 char min(char, char);
 void refresh_state();
+const char* sector_map(sector_states state);
+const char tone_map(tone_states state);
+const char reset_map(reset_states state);
 
 void configure_int0(){
   /* EIMSK - External Interrupt Mask
@@ -65,6 +70,20 @@ void configure_int1(){
   EICRA |= 0b00001000;
 };
 
+void configure_int_d(){
+	/* PCICR - Pin Change Interrupt Control Reg
+	 * [-][-][-][-][-][PCIE2][PCIE1][PCIE0]
+	 * PCIE0: Interrupts for port B
+	 * PCIE1: Interrupts for port C
+	 * PCIE2: Interrupts for port D
+	 */
+	PCICR = (1 << PCIE2);
+	/* PCMSK - Pin Change Mask
+	 * Which pins you want to trigger an interrupt
+	 */
+	PCMSK2 = (1 << PD5) | (1 << PD6) | (1 << PD7);
+};
+
 unsigned char swap(unsigned char x){
   return ((x & 0x0F)<<4 | (x & 0xF0)>>4);
 };
@@ -93,13 +112,13 @@ void configure_clock1(const int freq){
    * COM1A - Compare Output mode channel A
    * COM1B - ** for A
    * WGM - Wave Gen Mode */
-  TCCR1A = 0b01000000;
+  TCCR1A = 0b01000011;
 
   /* To Set WGM = 0000 and Prescaler to 1024
    * TCCR1B = [00][-][00][101]
    * TCCR1C = [FOC1A][FOC1B][-][-][-][-][-][-]
    * FOC - Force Output Compare for A/B */
-  TCCR1B = 0b00001010;
+  TCCR1B = 0b00011010;
 
   TCCR1C = 0b00000000;
 

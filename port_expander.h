@@ -25,9 +25,9 @@
 #define OLATB    0x15
 
 typedef struct {
-  char out_a;
-  char out_b;
-  char in;
+  unsigned char out_a;
+  unsigned char out_b;
+  unsigned char in;
 } port_expander;
 
 void configure_port_expander();

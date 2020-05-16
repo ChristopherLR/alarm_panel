@@ -6,7 +6,7 @@ USB_MODEM := $(shell ls /dev/tty.usb*)
 
 build:
 	mkdir build
-	avr-gcc -mmcu=atmega328p main.c analog.c lcd.c port_expander.c spi.c twi.c -o main.out
+	avr-gcc -mmcu=atmega328p main.c analog.c state_machine.c lcd.c port_expander.c spi.c twi.c -o main.out
 	avr-objcopy -j .text -j .data -O ihex main.out main.hex
 	mv *.out $(BUILD_DIR)
 	mv *.hex $(BUILD_DIR)
