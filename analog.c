@@ -1,22 +1,6 @@
 #include "analog.h"
 #include <avr/io.h>
 
-void check_analog(float * timer_scaler){
-  unsigned char an = analog_read();
-  float scaled = 0;
-  if(an < 20 ){
-    scaled = 0;
-  } else if(an < 50){
-    scaled = 0.2;
-  } else if(an < 120){
-    scaled = 0.4;
-  } else if( an < 170){
-    scaled = 0.6;
-  } else if( an < 220){
-    scaled = 0.8;
-  } else scaled = 0.9;
-  *timer_scaler = 1.0 - scaled;
-};
 
 char analog_init(){
   DDRC &= 0b11111110;
@@ -33,9 +17,11 @@ char analog_init(){
    * ADATE = ADC Auto Trigger Enable
    * ADIF = ADC Interrupt Flag
    * ADIE = ADC Interrupt Enable
-   * ADPS = Prescaler Select Bits - Slows down the conversion rate
+   * ADPS[2:0] = Prescaler Select Bits - Slows down the conversion rate
    */
-  ADCSRA = 0b10000111;
+	ADCSRA = 0;
+	ADCSRA |= (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0) ;
+  //ADCSRA = 0b10101111;
 
   return 1;
 }

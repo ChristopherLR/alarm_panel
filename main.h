@@ -7,6 +7,7 @@
 /* AVR definitions*/
 #define FOSC 16000000
 #define I2C_FREQ 40000
+#define SECOND 61
 
 /* Scales to a standard of 1 sec, so scaler 0.5 would be half second
  * Be careful because the underlying value is 16 bits */
@@ -16,12 +17,40 @@ void configure_int0();
 void configure_int1();
 char check_hazard();
 void increment_state();
-char check_next_state_1();
-char check_next_state_2();
-void hazard();
+
+// Tone Functions
+void tone_controller();
+
+
+// LED Functions
+void led_controller();
+void state_flash(sector_state * sector);
+void sense_flash(sector_state * sector);
+void isolate_flash(sector_state * sector);
+void evac_flash(sector_state * sector);
+
+// Sector Functions
+void sector_controller();
+char get_state_int(sector_state * sector);
+char int_counter();
+void reset_sector(sector_state * sector, char level);
+
 void transfer_state();
+
+// State triggers
+void trigger_isolate();
+void trigger_emergency();
+void trigger_evac();
+void trigger_alert();
+void trigger_reset();
+void trigger_sector_evac();
+void trigger_sensor();
+
+// Display functions
+void init_display();
 void display_state();
-void convert_counters();
+
+void check_analog();
 void set_next_state();
 void ERROR();
 char min(char, char);

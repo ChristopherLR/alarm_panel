@@ -113,6 +113,7 @@ unsigned char twi_send_addr(unsigned char addr){
 };
 
 void twi_wait(){
+	// Waiting for the TWI Control Reg interrupt flag
   while(!(TWCR & (1 << TWINT)));
 };
 
