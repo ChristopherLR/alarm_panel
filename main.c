@@ -162,7 +162,8 @@ ISR(TIMER2_COMPB_vect){
 	TCNT2 = 0;
 	SYSTEM_TICK++;
 	if(int_counter() > 0) INT_TICK++;
-  if(reset.state != reset_nominal ) RESET_TICK++;
+  RESET_TICK++;
+  TONE_TICK++;
 };
 
 void sense_flash(sector_state * sector){
@@ -282,7 +283,7 @@ void state_flash(sector_state * sector){
 
 void led_controller(){
   LED_TOGGLE = SYSTEM_TICK < PORT_EXPANDER_INTERVAL ? 1 : 0;
-  ISO_TOGGLE = (SYSTEM_TIMER%2 == 0) ? ISO_TOGGLE^1 : ISO_TOGGLE;
+  ISO_TOGGLE = (SYSTEM_TIMER%4 == 0) ;
   state_flash(&sector_1);
   state_flash(&sector_2);
   state_flash(&sector_3);
@@ -314,11 +315,15 @@ void trigger_sector_evac(){
 void increment_state(){
   sector_controller();
   led_controller();
-
+  tone_controller();
 };
 
 void sector_controller(){
   unsigned char count = int_counter();
+  if(count != INT_COUNTER){
+    SECTOR_LATCH = 0;
+  }
+  INT_COUNTER = count;
   if (count >= 2 || INT_TIMER >= 6) {
     if (SECTOR_LATCH != 2){
       SECTOR_LATCH = 2;
@@ -330,7 +335,6 @@ void sector_controller(){
       trigger_alert();
     }
   } else {
-    SECTOR_LATCH = 0;
   }
 };
 
@@ -338,6 +342,7 @@ void sector_controller(){
 void trigger_sensor(sector_state * sector){
   if(sector->state == sensor_nominal){
     sector->state = alert_sense;
+    reset.state = reset_nominal;
     sector_controller();
   }
 };
@@ -345,6 +350,9 @@ void trigger_sensor(sector_state * sector){
 
 void trigger_isolate(){
   LED_DISP1[15] = 'I';
+  isolate_sector(&sector_1);
+  isolate_sector(&sector_2);
+  isolate_sector(&sector_3);
 };
 void trigger_reset(){
   LED_DISP1[15] = 'R';
@@ -367,7 +375,7 @@ void trigger_reset(){
       RESET_TICK = 0;
       RESET_TIMER = 0;
     }
-  } else if (reset.state == reset_nominal && ( RESET_TICK > 10 || RESET_TIMER)) {
+  } else if (reset.state == reset_nominal && RESET_TICK > 10 ) {
     reset.state = reset_1;
     RESET_TICK = 0;
     RESET_TIMER = 0;
@@ -376,6 +384,7 @@ void trigger_reset(){
 void trigger_emergency(){
   LED_DISP1[15] = 'E';
   reset.state = reset_nominal;
+  tone.state = tone_evac;
 };
 void trigger_alert(){
   if (get_state_int(&sector_1)) sector_1.state = alert_trigger;
@@ -390,6 +399,7 @@ void tone_controller(){
     if (TONE_LATCH != 1){
       TONE_LATCH = 1;
       TCCR1B = 0;
+      PORTB &= 0b11111101;
     }
     return;
   } else if (tone.state == tone_alert){
@@ -398,16 +408,18 @@ void tone_controller(){
       configure_clock1(2000);
     }
   } else if (tone.state == tone_evac){
-    if ( TONE_TICK > 2 * SECOND){
+    if ( TONE_TICK < 2 * SECOND){
       if (TONE_LATCH != 3 ){
         TONE_LATCH = 3;
         configure_clock1(200);
       }
-    } else {
+    } else if (TONE_TICK < 4 * SECOND) {
       if (TONE_LATCH != 4){
         TONE_LATCH = 4;
         configure_clock1(370);
       }
+    } else {
+      TONE_TICK = 0;
     }
   }
 };
@@ -423,6 +435,13 @@ void reset_sector(sector_state * sector, char level){
     sector->state = sensor_nominal;
   }
 };
+
+void isolate_sector(sector_state * sector ){
+  sector_states state = sector->state;
+  if(state == alert_sense || state == alert_trigger || state == alert_evac){
+    sector->state = alert_isolate;
+  }
+}
 
 void check_analog(){
 	unsigned char ac = analog_read();
@@ -446,17 +465,17 @@ void init_display(){
 	LED_DISP1[1] = '1';
 	LED_DISP1[2] = ':';
   LED_DISP1[3] = ' '; // S1 STATE
-  LED_DISP1[4] = ' '; // ISOLATED?
+  LED_DISP1[4] = ' ';
 	LED_DISP1[5] = 'S';
 	LED_DISP1[6] = '2';
 	LED_DISP1[7] = ':';
   LED_DISP1[8] = ' '; // S2 STATE
-  LED_DISP1[9] = ' '; // ISOLATED?
+  LED_DISP1[9] = ' ';
   LED_DISP1[10] = 'S';
 	LED_DISP1[11] = '3';
 	LED_DISP1[12] = ':';
   LED_DISP1[13] = ' '; // S3 STATE
-  LED_DISP1[14] = ' '; // ISOLATED?
+  LED_DISP1[14] = ' ';
   LED_DISP1[15] = ' '; // RESERVED
   // ROW 2
   LED_DISP2[0] = 'R';
@@ -479,14 +498,11 @@ void init_display(){
 
 void display_state(){
 	// Setting the display for the sector states
-	LED_DISP1[3] = sector_map(sector_1.state)[0];
-	LED_DISP1[4] = sector_map(sector_1.state)[1];
+	LED_DISP1[3] = sector_map(sector_1.state);
 
-  LED_DISP1[8] = sector_map(sector_2.state)[0];
-	LED_DISP1[9] = sector_map(sector_2.state)[1];
+  LED_DISP1[8] = sector_map(sector_2.state);
 
-  LED_DISP1[13] = sector_map(sector_3.state)[0];
-	LED_DISP1[14] = sector_map(sector_3.state)[1];
+  LED_DISP1[13] = sector_map(sector_3.state);
 
 	lcd_write_str(LED_DISP1, 0x00, 16);
 
@@ -508,26 +524,26 @@ void display_state(){
 void refresh_state(){
 };
 
-const char* sector_map( sector_states state ){
-	char *retc = "  ";
+const char sector_map( sector_states state ){
+	char retc = " ";
 	switch (state) {
 	case sensor_nominal:
-		retc[0] = 'N';
+		retc = 'N';
 		break;
 	case alert_sense:
-		retc[0] = 'S';
+		retc = 'S';
 		break;
 	case alert_trigger:
-		retc[0] = 'T';
+		retc = 'T';
 		break;
 	case alert_evac:
-		retc[0] = 'E';
+		retc = 'E';
 		break;
 	case alert_isolate:
-		retc[1] = 'I';
+		retc = 'I';
 		break;
 	default:
-		retc[0] = 'X';
+		retc = 'X';
 		break;
 	}
 	return retc;

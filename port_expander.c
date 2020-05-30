@@ -29,9 +29,21 @@ void read_port_expander(port_expander * PE){
 
   tmp = spi_read(GPIOA, 0x00);
   // Emergency Button
-  if(!(tmp & 0b01000000)) PE->in |= 0b000000100;
+  if(!(tmp & 0b01000000)) {
+    PE->in |= 0b00000100;
+  } else {
+    PE->in &= 0b11111011;
+  }
   // Reset Button
-  if(!(tmp & 0b00100000)) PE->in |= 0b000000010;
+  if(!(tmp & 0b00100000)){
+    PE->in |= 0b00000010;
+  } else {
+    PE->in &= 0b11111101;
+  }
   // Isolate Button
-  if(!(tmp & 0b00010000)) PE->in |= 0b000000001;
+  if(!(tmp & 0b00010000)){
+    PE->in |= 0b00000001;
+  } else {
+    PE->in &= 0b11111110;
+  }
 }

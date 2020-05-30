@@ -34,6 +34,7 @@ void sector_controller();
 char get_state_int(sector_state * sector);
 char int_counter();
 void reset_sector(sector_state * sector, char level);
+void isolate_sector(sector_state * sector);
 
 void transfer_state();
 
@@ -55,7 +56,7 @@ void set_next_state();
 void ERROR();
 char min(char, char);
 void refresh_state();
-const char* sector_map(sector_states state);
+const char sector_map(sector_states state);
 const char tone_map(tone_states state);
 const char reset_map(reset_states state);
 
